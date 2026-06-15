@@ -2,6 +2,8 @@
 
 A thrift-shopping agent that searches secondhand listings, suggests outfits using your wardrobe, and generates a shareable caption — all from one natural-language query.
 
+**Demo Video:** https://drive.google.com/file/d/1ID-Nu_qIHf4w7akdf6GJ07tJOve5ZXmK/view?usp=sharing
+
 ## Setup
 
 ```bash
@@ -36,11 +38,11 @@ pytest tests/
 
 **Purpose:** Finds secondhand listings that match a keyword description, with optional size and price filters. No LLM involved — pure data filtering and scoring.
 
-| Parameter | Type | Meaning |
-|-----------|------|---------|
-| `description` | `str` | Natural-language keywords (e.g. `"vintage graphic tee"`). Scored against each listing's title, description text, and style_tags. |
-| `size` | `str \| None` | Size to filter by (e.g. `"M"`, `"W30"`). Case-insensitive substring match — `"m"` matches `"S/M"`, `"M/L"`, `"M"`. Pass `None` to skip. |
-| `max_price` | `float \| None` | Maximum price in dollars, inclusive. Pass `None` to skip. |
+| Parameter       | Type             | Meaning                                                                                                                                               |
+| --------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `description` | `str`          | Natural-language keywords (e.g.`"vintage graphic tee"`). Scored against each listing's title, description text, and style_tags.                     |
+| `size`        | `str \| None`   | Size to filter by (e.g.`"M"`, `"W30"`). Case-insensitive substring match — `"m"` matches `"S/M"`, `"M/L"`, `"M"`. Pass `None` to skip. |
+| `max_price`   | `float \| None` | Maximum price in dollars, inclusive. Pass `None` to skip.                                                                                           |
 
 **Returns:** A list of listing dicts sorted by relevance score (highest first). Each dict contains: `id`, `title`, `description`, `category`, `style_tags` (list), `size`, `condition`, `price` (float), `colors` (list), `brand` (str or None), `platform`. Returns `[]` on no match — never raises.
 
@@ -50,9 +52,9 @@ pytest tests/
 
 **Purpose:** Uses an LLM (Groq `llama-3.3-70b-versatile`) to suggest 1–2 complete outfit combinations that pair the new thrifted item with pieces from the user's wardrobe.
 
-| Parameter | Type | Meaning |
-|-----------|------|---------|
-| `new_item` | `dict` | A listing dict — the item the user is considering buying. Passed from `search_listings` output. |
+| Parameter    | Type     | Meaning                                                                                                                                                                          |
+| ------------ | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `new_item` | `dict` | A listing dict — the item the user is considering buying. Passed from `search_listings` output.                                                                               |
 | `wardrobe` | `dict` | A wardrobe dict with an `items` key. Each wardrobe item has: `id`, `name`, `category`, `colors` (list), `style_tags` (list), `notes` (optional str). May be empty. |
 
 **Returns:** A non-empty string. If the wardrobe has items, the suggestions reference specific named wardrobe pieces. If the wardrobe is empty, it returns general styling advice instead. Returns an error string (not an exception) if the LLM call fails.
@@ -63,10 +65,10 @@ pytest tests/
 
 **Purpose:** Generates a casual, shareable 2–4 sentence OOTD caption using an LLM at higher temperature (`1.1`) for variety.
 
-| Parameter | Type | Meaning |
-|-----------|------|---------|
-| `outfit` | `str` | The outfit suggestion string from `suggest_outfit`. Guarded against empty/whitespace. |
-| `new_item` | `dict` | The listing dict — used for title, price, and platform in the caption. |
+| Parameter    | Type     | Meaning                                                                                 |
+| ------------ | -------- | --------------------------------------------------------------------------------------- |
+| `outfit`   | `str`  | The outfit suggestion string from `suggest_outfit`. Guarded against empty/whitespace. |
+| `new_item` | `dict` | The listing dict — used for title, price, and platform in the caption.                 |
 
 **Returns:** A 2–4 sentence first-person caption that mentions the item name, price, and platform once each. Returns a fixed error string `"Could not generate a fit card — no outfit suggestion was provided."` if `outfit` is empty or whitespace-only — without calling the LLM.
 
@@ -123,15 +125,15 @@ User query (natural language)
 
 All state lives in a single `session` dict, initialized fresh for each call to `run_agent()`. Every tool reads its inputs from the session and writes its output back to a named key.
 
-| Key | Written by | Read by |
-|-----|-----------|---------|
-| `session["parsed"]` | `_parse_query()` | `search_listings` call |
-| `session["search_results"]` | `search_listings` | gate check, item selection |
-| `session["selected_item"]` | loop (index 0 of results) | `suggest_outfit`, `create_fit_card` |
-| `session["wardrobe"]` | `_new_session()` (from caller) | `suggest_outfit` |
-| `session["outfit_suggestion"]` | `suggest_outfit` | `create_fit_card` |
-| `session["fit_card"]` | `create_fit_card` | returned to UI |
-| `session["error"]` | loop (on early exit) | UI handler |
+| Key                              | Written by                       | Read by                                 |
+| -------------------------------- | -------------------------------- | --------------------------------------- |
+| `session["parsed"]`            | `_parse_query()`               | `search_listings` call                |
+| `session["search_results"]`    | `search_listings`              | gate check, item selection              |
+| `session["selected_item"]`     | loop (index 0 of results)        | `suggest_outfit`, `create_fit_card` |
+| `session["wardrobe"]`          | `_new_session()` (from caller) | `suggest_outfit`                      |
+| `session["outfit_suggestion"]` | `suggest_outfit`               | `create_fit_card`                     |
+| `session["fit_card"]`          | `create_fit_card`              | returned to UI                          |
+| `session["error"]`             | loop (on early exit)             | UI handler                              |
 
 No global variables. The item found by `search_listings` flows directly into `suggest_outfit` as the same dict object — there is no re-entry, no re-prompting the user, and no hardcoded values between steps.
 
@@ -139,11 +141,11 @@ No global variables. The item found by `search_listings` flows directly into `su
 
 ## Error Handling
 
-| Tool | Failure mode | What the agent does |
-|------|-------------|---------------------|
-| `search_listings` | No listings match the query | Sets `session["error"]` to: `"No listings found for 'designer ballgown' in size XXS under $5.00 - try broadening your description, relaxing the size, or raising your budget."` Returns session immediately. `suggest_outfit` and `create_fit_card` are never called. |
-| `suggest_outfit` | `wardrobe["items"]` is empty | Calls the LLM with a different prompt asking for general styling advice ("what types of bottoms and shoes pair well with this piece"). Returns a non-empty string — does not crash or return `""`. |
-| `create_fit_card` | `outfit` is empty or whitespace-only | Returns `"Could not generate a fit card — no outfit suggestion was provided."` immediately, without calling the LLM. |
+| Tool                | Failure mode                           | What the agent does                                                                                                                                                                                                                                                           |
+| ------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `search_listings` | No listings match the query            | Sets `session["error"]` to: `"No listings found for 'designer ballgown' in size XXS under $5.00 - try broadening your description, relaxing the size, or raising your budget."` Returns session immediately. `suggest_outfit` and `create_fit_card` are never called. |
+| `suggest_outfit`  | `wardrobe["items"]` is empty         | Calls the LLM with a different prompt asking for general styling advice ("what types of bottoms and shoes pair well with this piece"). Returns a non-empty string — does not crash or return `""`.                                                                         |
+| `create_fit_card` | `outfit` is empty or whitespace-only | Returns `"Could not generate a fit card — no outfit suggestion was provided."` immediately, without calling the LLM.                                                                                                                                                       |
 
 **Concrete examples from testing:**
 
